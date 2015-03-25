@@ -35,7 +35,8 @@ if (rank == 0) {
 else if (rank == 1) {
   dest = rank - 1;
   source = dest;
-  tag = rank;
+  // noah: the tag was differerent between the send and receive calls
+  tag = rank-1; 
   rc = MPI_Recv(&inmsg, 1, MPI_CHAR, source, tag, MPI_COMM_WORLD, &Stat);
   printf("Received from task %d...\n",source);
   rc = MPI_Send(&outmsg, 1, MPI_CHAR, dest, tag, MPI_COMM_WORLD);
