@@ -1,0 +1,40 @@
+* Bugs
+** hw_bug4
+
+I am not sure what the output is supposed to look like. Is it bad that
+initial sum matches the final sum?
+
+downloaded mpi_array and run to compare output
+
+#+BEGIN_SRC sh :results output 
+  curl -O https://computing.llnl.gov/tutorials/mpi/samples/C/mpi_array.c
+  make mpi_array
+  mpirun -np 4 ./mpi_array
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+mpicc -o mpi_array mpi_array.c
+MPI task 0 has started...
+MPI task 2 has started...
+MPI task 3 has started...
+MPI task 1 has started...
+Initialized array sum = 1.335708e+14
+Sent 4000000 elements to task 1 offset= 4000000
+Sent 4000000 elements to task 2 offset= 8000000
+Sent 4000000 elements to task 3 offset= 12000000
+Task 1 mysum = 4.884048e+13
+Task 2 mysum = 7.983003e+13
+Task 3 mysum = 1.161867e+14
+Task 0 mysum = 1.598859e+13
+Sample results: 
+  0.000000e+00  2.000000e+00  4.000000e+00  6.000000e+00  8.000000e+00
+  8.000000e+06  8.000002e+06  8.000004e+06  8.000006e+06  8.000008e+06
+  1.600000e+07  1.600000e+07  1.600000e+07  1.600001e+07  1.600001e+07
+  2.400000e+07  2.400000e+07  2.400000e+07  2.400001e+07  2.400001e+07
+*** Final sum= 2.608458e+14 ***
+#+end_example
+
+
+The initial and final sums should of course be different because the
+array changes.
