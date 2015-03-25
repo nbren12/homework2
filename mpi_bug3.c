@@ -23,6 +23,8 @@ float update(int myoffset, int chunk, int myid);
 MPI_Status status;
 
 /***** Initializations *****/
+
+MPI_Init(&argc, &argv);  // noah: added call to init.
 MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
 if (numtasks % 4 != 0) {
    printf("Quitting. Number of MPI tasks must be divisible by 4.\n");
@@ -120,5 +122,8 @@ float update(int myoffset, int chunk, int myid) {
     }
   printf("Task %d mysum = %e\n",myid,mysum);
   return(mysum);
+
+
+  MPI_Finalize(); // noah: added call to finalize
   }
 
