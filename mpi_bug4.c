@@ -7,6 +7,7 @@
 * AUTHOR: Blaise Barney 
 * LAST REVISED: 01/24/09
 ******************************************************************************/
+/* MPI_Init(&argc, &argv);  // noah: added call to init. */
 #include "mpi.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -78,7 +79,6 @@ if (taskid == MASTER){
     printf("\n");
     offset = offset + chunksize;
     }
-  printf("*** Final sum= %e ***\n",sum);
 
   }  /* end of master section */
 
@@ -101,12 +101,20 @@ if (taskid > MASTER) {
   MPI_Send(&offset, 1, MPI_INT, dest, tag1, MPI_COMM_WORLD);
   MPI_Send(&data[offset], chunksize, MPI_FLOAT, MASTER, tag2, MPI_COMM_WORLD);
 
-  MPI_Reduce(&mysum, &sum, 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
 
   } /* end of non-master */
 
 
+/* noah: in the old code the MASTER process did not call MPI_Reduce. I
+   changed it so that MPI_Reduce is called outside of any
+   if-statements */
+
+MPI_Reduce(&mysum, &sum, 1, MPI_FLOAT, MPI_SUM, MASTER, MPI_COMM_WORLD);
+ if (taskid == MASTER)
+  printf("*** Final sum= %e ***\n",sum);
+
 MPI_Finalize();
+
 
 }   /* end of main */
 
