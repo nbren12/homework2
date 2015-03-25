@@ -41,7 +41,20 @@ if (rank == 0) {
 
   start = MPI_Wtime();
   while (1) {
-    MPI_Send(data, MSGSIZE, MPI_BYTE, dest, tag, MPI_COMM_WORLD);
+
+    /*  Noah Comments
+	=============
+
+	When using MPI_Send, the mpi implementation on my
+	macbook does not block the sending process. While the receive
+	task computes, the send task continues to fill the
+	buffer. After about 60 iterations, the buffer is full and the
+	MPI_Send call blocks for the first time.
+	
+	Solution: Use a MPI_Ssend call instead, which blocks until the
+	communication is complete.
+    */
+    MPI_Ssend(data, MSGSIZE, MPI_BYTE, dest, tag, MPI_COMM_WORLD);
     count++;
     if (count % 10 == 0) {
       end = MPI_Wtime();
