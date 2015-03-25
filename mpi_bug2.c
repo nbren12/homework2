@@ -34,8 +34,16 @@ if (rank == 0) {
 
 if (rank == 1) {
   for (i=0; i<10; i++) {
-    MPI_Irecv(&beta, 1, MPI_FLOAT, 0, tag, MPI_COMM_WORLD, &reqs[i]);
+
+    // noah: The old code was trying to receive an int in a float
+    // buffer. Solved by using an int to receive, which is then cast
+    // to a float after the communication completes.
+
+    int ibeta;
+    MPI_Irecv(&ibeta, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &reqs[i]);
     MPI_Wait(&reqs[i], &stats[i]);
+
+    beta = (float) ibeta;
     printf("Task %d received = %f\n",rank,beta);
     }
   }
