@@ -22,7 +22,15 @@ MPI_Get_processor_name(hostname, &len);
 printf ("Task %d on %s starting...\n", taskid, hostname);
 buffer = 23;
 root = 0;
-count = taskid;
+
+/* Noah Comments
+   =============
+   
+   `count` was dependent on the taskid. Therefore, the MPI_Bcast calls
+   made by each processor did not match.
+
+*/
+count = 1;
 if (taskid == root)
    printf("Root: Number of MPI tasks is: %d\n",numtasks);
 
