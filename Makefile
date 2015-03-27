@@ -6,8 +6,15 @@ CFLAGS = -g
 
 all: $(FIXME_EXEC) ssort
 
+run: ssort
+	mpirun -np 4 ./ssort
+
+verify: run
+	./verify.sh
 
 clean: 
 	rm -f $(FIXME_EXEC) ssort
 	rm -f out.???.txt
 	rm -rf *.dSYM
+
+.PHONY: verify clean all run
