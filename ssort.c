@@ -6,6 +6,15 @@
 #include <stdlib.h>
 
 
+void printvec(int* vec, int N){
+  int i;
+  for (i = 0; i < N; i++) {
+    printf("%d ", vec[i]);
+  }
+  printf("\n");
+}
+
+
 static int compare(const void *a, const void *b)
 {
   int *da = (int *)a;
@@ -23,7 +32,7 @@ int main( int argc, char *argv[])
 {
   int rank, world_size;
   int i, j, N, S;
-  int *vec, *samples, *sample_idxs;
+  int *vec, *samples, *sample_idxs, *rcv_vec;
   int *all_samples;
   int *bins, nsamp;
   int randint;
@@ -41,6 +50,8 @@ int main( int argc, char *argv[])
 
   /* Number of entries to send to root process. */
   S = 10;
+  int nbins = world_size -1;
+  
   nsamp = S * world_size;
 
 
@@ -48,7 +59,7 @@ int main( int argc, char *argv[])
   vec = calloc(N, sizeof(int));
   samples = calloc(N, sizeof(int));
   sample_idxs = calloc(N, sizeof(int));
-  bins = calloc(world_size, sizeof(int));
+  bins = calloc(nbins, sizeof(int));
 
   /* Only need to allocate on root process */
   if (rank == root) all_samples = calloc(nsamp, sizeof(int));
@@ -62,6 +73,8 @@ int main( int argc, char *argv[])
   }
   printf("rank: %d, first entry: %d\n", rank, vec[0]);
 
+  /* sort locally */
+  qsort(vec, N, sizeof(int), compare);
 
   /* randomly sample s entries from vector or select local splitters,
    * i.e., every N/P-th entry of the sorted vector */
@@ -101,22 +114,99 @@ int main( int argc, char *argv[])
   }
 
   /* root process broadcasts splitters */
-  MPI_Bcast(bins, world_size, MPI_INT, root, MPI_COMM_WORLD);
+  MPI_Bcast(bins, nbins, MPI_INT, root, MPI_COMM_WORLD);
 
 
   /* every processor uses the obtained splitters to decide
    * which integers need to be sent to which other processor (local bins) */
 
+  /* Calculate the beginning index of each bin */
+  int binstarts[world_size+1];
+  j = 0;
+  binstarts[0] = 0;
+  for (i = 0; i < N ; ++i){
+    while (vec[i] > bins[j] && j < world_size -1){
+      binstarts[++j] = i;
+    }
+    if (j == world_size-1) break;
+  }
+  binstarts[world_size] = N;
+  /* printf("Rank %d: ", rank); printvec(binstarts, world_size+1); */
+
+  /* Calculate the number elements in each bin */
+  int bincounts[world_size];
+  for (i = 0; i < world_size; i++) {
+    bincounts[i] = binstarts[i+1] - binstarts[i];
+  }
+
+  printf("Rank: %d bin counts: ", rank); printvec(bincounts, world_size);
+
+
   /* send and receive: either you use MPI_AlltoallV, or
    * (and that might be easier), use an MPI_Alltoall to share
    * with every processor how many integers it should expect,
    * and then use MPI_Send and MPI_Recv to exchange the data */
+  int rcvcounts[world_size];
+  MPI_Alltoall(bincounts, 1, MPI_INT, rcvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+
+  /* Get total size of incoming data */
+  int rcvtotal = 0;
+  for (i = 0; i < world_size; i++) {
+    rcvtotal += rcvcounts[i];
+  }
+
+  printf("Rank %d: total %d\n", rank, rcvtotal);
+
+  /* Allocate array for incoming data.
+
+   Question: Do I need to use a new array. Or does MPI take care of
+   the buffering under the hood.*/
+  rcv_vec = calloc(rcvtotal, sizeof(int));
+
+  /* Send and receive the data */
+  MPI_Request reqs[world_size]; 
+
+
+  /* Use nonblocking sends */
+  for (i = 0; i < world_size; i++) {
+    MPI_Isend(vec + binstarts[i], bincounts[i], MPI_INT, i, 0, MPI_COMM_WORLD, reqs+i); 
+  }
+
+  /* Blocking Recvs */
+  int offset = 0;
+  MPI_Status status;
+  for (i = 0; i < world_size; i++) {
+    MPI_Recv(rcv_vec + offset, rcvcounts[i], MPI_INT, i, 0, MPI_COMM_WORLD, &status);
+    offset += rcvcounts[i];
+  }
 
   /* sort locally */
-  qsort(vec, N, sizeof(int), compare);
+  qsort(rcv_vec, rcvtotal, sizeof(int), compare);
+
+  
+  /* Wait for sends to finish */
+  for (i = 0; i < world_size; i++) {
+    MPI_Wait(reqs + i, &status);
+  }
 
   /* every processor writes its result to a file */
+
+  FILE *f;
+  char filename[50];
+  sprintf(filename, "out.%03d.txt", rank);
+  f = fopen(filename, "w");
+
+  for (i = 0; i < rcvtotal ; i++) {
+    fprintf(f, "%d\n", rcv_vec[i]);
+  }
+
+  fclose(f);
+
+
+
+  /* Deallocate and wrap up */
   free(vec);
+  free(rcv_vec);
   free(samples);
   free(sample_idxs);
   free(bins);
