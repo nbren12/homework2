@@ -14,7 +14,7 @@ verify: run
 
 clean: 
 	rm -f $(FIXME_EXEC) ssort
-	rm -f out.???.txt
+	rm -f out.???.txt out.txt
 	rm -rf *.dSYM
 
 .PHONY: verify clean all run

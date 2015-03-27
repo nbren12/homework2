@@ -10,3 +10,5 @@ echo "**********************************************************************"
 cat out.???.txt > out.txt
 sort -n out.txt > out.sorted.txt
 diff out.txt out.sorted.txt
+
+rm out.sorted.txt
