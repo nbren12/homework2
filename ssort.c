@@ -191,16 +191,19 @@ int main( int argc, char *argv[])
 
   /* every processor writes its result to a file */
 
-  FILE *f;
-  char filename[50];
-  sprintf(filename, "out.%03d.txt", rank);
-  f = fopen(filename, "w");
+  {
+    FILE *f;
+    char filename[50];
+    sprintf(filename, "out.%03d.txt", rank);
+    f = fopen(filename, "w");
 
-  for (i = 0; i < rcvtotal ; i++) {
-    fprintf(f, "%d\n", rcv_vec[i]);
+    for (i = 0; i < rcvtotal ; i++) {
+      fprintf(f, "%d\n", rcv_vec[i]);
+    }
+
+    fclose(f);
   }
 
-  fclose(f);
 
 
 
