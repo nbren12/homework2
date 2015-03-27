@@ -9,3 +9,5 @@ all: $(FIXME_EXEC) ssort
 
 clean: 
 	rm -f $(FIXME_EXEC) ssort
+	rm -f out.???.txt
+	rm -rf *.dSYM
