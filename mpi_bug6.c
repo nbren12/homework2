@@ -54,8 +54,8 @@ T1 = MPI_Wtime();     /* start the clock */
    =============
 
    The bugs in this code result from offset and nreqs being wrong. The
-   offset should start at 0 for all processes. The number of reqs
-   should be the following for each process:
+   starting offset should start at 0 for all processes. The number of
+   reqs should be the following for each process:
 
    |------+--------+--------+--------|
    | rank | isends | irecvs | nreqs  |
