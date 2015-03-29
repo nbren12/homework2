@@ -46,15 +46,36 @@ T1 = MPI_Wtime();     /* start the clock */
 *  Determine who to send/receive with. nreqs specifies how many non-blocking
 *  operation request handles to capture. offset is where the task should
 *  store each request as it is captured in the reqs() array.         */
+
+
+
+
+/* Noah Comments
+   =============
+
+   The bugs in this code result from offset and nreqs being wrong. The
+   offset should start at 0 for all processes. The number of reqs
+   should be the following for each process:
+
+   |------+--------+--------+--------|
+   | rank | isends | irecvs | nreqs  |
+   |------+--------+--------+--------|
+   |    0 | REPS   | REPS   | 2*REPS |
+   |    1 | REPS   | REPS   | 2*REPS |
+   |    2 | 0      | 0      | 0      |
+   |    3 | 0      | REPS   | REPS   |
+   |------+--------+--------+--------|
+
+
+*/
+offset = 0;
 if (rank < 2) {
   nreqs = REPS*2;
   if (rank == 0) {
     src = 1;
-    offset = 0;
     }
   if (rank == 1) {
     src = 0;
-    offset = REPS;
     }
   dest = src;
 
@@ -73,10 +94,10 @@ if (rank < 2) {
    operation request handles to capture. offset is where the task should
    store each request as it is captured in the reqs() array.  */
 if (rank > 1) {
-  nreqs = REPS;
 
 /* Task 2 does the blocking send operation */
   if (rank == 2) {
+    nreqs = 0;
     dest = 3;
     for (i=0; i<REPS; i++) {
       MPI_Send(&rank, 1, MPI_INT, dest, tag1, COMM);
@@ -87,8 +108,8 @@ if (rank > 1) {
 
 /* Task 3 does the non-blocking receive operation */
   if (rank == 3) {
+    nreqs = REPS;
     src = 2;
-    offset = 0;
     for (i=0; i<REPS; i++) {
       MPI_Irecv(&buf, 1, MPI_INT, src, tag1, COMM, &reqs[offset]);
       offset += 1;
