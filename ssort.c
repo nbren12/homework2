@@ -14,6 +14,23 @@ void printvec(int* vec, int N){
   printf("\n");
 }
 
+void dprintvec(double* vec, int N){
+  int i;
+  for (i = 0; i < N; i++) {
+    printf("%f ", vec[i]);
+  }
+  printf("\n");
+}
+
+double maxarr(double * arr, int N) {
+  int i;
+  double m;
+  m = arr[0];
+  for (i = 0 ; i < N; i++) {
+    if (arr[i] > m) m = arr[i];
+  }
+  return m;
+}
 
 static int compare(const void *a, const void *b)
 {
@@ -39,14 +56,32 @@ int main( int argc, char *argv[])
 
 
   int root = 0;
+  
+
+  /* Number of random numbers per processor (this should be increased
+   * for actual tests or could be passed in through the command line */
+  if (argc < 2 ) {
+    printf("Need at least one argument\n");
+    return 1;
+  } else {
+    N = atoi(argv[1]);
+  }
+
+
 
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+  
+  if (rank == 0) {
+    printf("*****************************************************\n");
+    printf("Running parallel sort\n") ;
+    printf("Number of processors: %d\n", world_size);
+    printf("Samples per processor: %d\n", N);
+    printf("*****************************************************\n");
+    printf("\n");
+  }
 
-  /* Number of random numbers per processor (this should be increased
-   * for actual tests or could be passed in through the command line */
-  N = 100;
 
   /* Number of entries to send to root process. */
   S = 10;
@@ -72,6 +107,10 @@ int main( int argc, char *argv[])
     vec[i] = rand();
   }
   printf("rank: %d, first entry: %d\n", rank, vec[0]);
+  
+  /* Begin Sorting */
+  double start_time, end_time, duration;
+  start_time = MPI_Wtime();
 
   /* sort locally */
   qsort(vec, N, sizeof(int), compare);
@@ -188,7 +227,10 @@ int main( int argc, char *argv[])
   for (i = 0; i < world_size; i++) {
     MPI_Wait(reqs + i, &status);
   }
-
+  
+  end_time = MPI_Wtime();
+  duration = end_time - start_time;
+  printf("Rank %d: Elapsed time %f sec\n", rank, duration);
   /* every processor writes its result to a file */
 
   {
@@ -205,6 +247,18 @@ int main( int argc, char *argv[])
   }
 
 
+  double durations[world_size];
+  MPI_Gather(&duration, 1, MPI_DOUBLE, durations, 1, MPI_DOUBLE,
+	     root, MPI_COMM_WORLD);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (rank == root) {
+    printf("\n");
+    printf("*****************************************************\n");
+    printf("Execution Complete\n") ;
+    printf("Total Execution Time: %f (sec)\n", maxarr(durations, world_size));
+    printf("*****************************************************\n");
+  }
 
 
   /* Deallocate and wrap up */
@@ -213,6 +267,9 @@ int main( int argc, char *argv[])
   free(samples);
   free(sample_idxs);
   free(bins);
+  
+  
+
 
   MPI_Finalize();
   return 0;
