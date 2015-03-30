@@ -5,6 +5,29 @@
 #include <mpi.h>
 #include <stdlib.h>
 
+void get_bincount(int* bins, int world_size, int* vec, int N, int* counts){
+  int i, j;
+  j = 0;
+  
+  for (i = 0; i < world_size; i++) {
+    counts[i] = 0;
+  }
+  
+  i = 0;
+  for (j=0; j < world_size-1 ; j++) {
+    while(vec[i] <= bins[j]) {
+      ++counts[j];
+      ++i;
+      if (i == N) break;
+    }
+    
+    if (i==N) break;
+  }
+  
+  counts[world_size-1] = N - i;
+
+}
+
 
 void printvec(int* vec, int N){
   int i;
@@ -45,6 +68,19 @@ static int compare(const void *a, const void *b)
     return 0;
 }
 
+void test_bincount(){
+  
+  int counts[4];
+  int bins[3] = {0, 10, 20};
+  
+  int vec[5] = {1, 11, 12, 13, 21};
+  
+  get_bincount(bins, 3, vec, 5, counts);
+  printvec(counts, 4);
+}
+
+
+
 int main( int argc, char *argv[])
 {
   int rank, world_size;
@@ -81,6 +117,7 @@ int main( int argc, char *argv[])
     printf("*****************************************************\n");
     printf("\n");
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 
 
   /* Number of entries to send to root process. */
@@ -148,7 +185,7 @@ int main( int argc, char *argv[])
    * split the data into P buckets of approximately the same size */
   if ( rank == root ){
     qsort(all_samples, nsamp, sizeof(int), compare);
-    for (i=0; i < world_size ; ++i) bins[i] = all_samples[(i+1) * S];
+    for (i=0; i < world_size-1; ++i) bins[i] = all_samples[(i+1) * S];
     free(all_samples);
   }
 
@@ -160,24 +197,10 @@ int main( int argc, char *argv[])
    * which integers need to be sent to which other processor (local bins) */
 
   /* Calculate the beginning index of each bin */
-  int binstarts[world_size+1];
-  j = 0;
-  binstarts[0] = 0;
-  for (i = 0; i < N ; ++i){
-    while (vec[i] > bins[j] && j < world_size -1){
-      binstarts[++j] = i;
-    }
-    if (j == world_size-1) break;
-  }
-  binstarts[world_size] = N;
-  /* printf("Rank %d: ", rank); printvec(binstarts, world_size+1); */
-
-  /* Calculate the number elements in each bin */
-  int bincounts[world_size];
-  for (i = 0; i < world_size; i++) {
-    bincounts[i] = binstarts[i+1] - binstarts[i];
-  }
-
+  int * bincounts;
+  bincounts = calloc(world_size, sizeof(int));
+  
+  get_bincount(bins, world_size, vec, N, bincounts);
   printf("Rank: %d bin counts: ", rank); printvec(bincounts, world_size);
 
 
@@ -207,12 +230,16 @@ int main( int argc, char *argv[])
 
 
   /* Use nonblocking sends */
+  int offset;
+
+  offset = 0;
   for (i = 0; i < world_size; i++) {
-    MPI_Isend(vec + binstarts[i], bincounts[i], MPI_INT, i, 0, MPI_COMM_WORLD, reqs+i); 
+   MPI_Isend(vec + offset, bincounts[i], MPI_INT, i, 0, MPI_COMM_WORLD, reqs+i); 
+    offset += bincounts[i];
   }
 
   /* Blocking Recvs */
-  int offset = 0;
+  offset = 0;
   MPI_Status status;
   for (i = 0; i < world_size; i++) {
     MPI_Recv(rcv_vec + offset, rcvcounts[i], MPI_INT, i, 0, MPI_COMM_WORLD, &status);
@@ -267,6 +294,7 @@ int main( int argc, char *argv[])
   free(samples);
   free(sample_idxs);
   free(bins);
+  free(bincounts);
   
   
 
