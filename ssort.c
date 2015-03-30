@@ -121,7 +121,7 @@ int main( int argc, char *argv[])
 
 
   /* Number of entries to send to root process. */
-  S = 10;
+  S = 20;
   int nbins = world_size -1;
   
   nsamp = S * world_size;
